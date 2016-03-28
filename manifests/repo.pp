@@ -36,26 +36,34 @@
 # [*release*] The name of the Ceph release to install
 #   Optional. Default to 'hammer'.
 #
-# [*extras*] Install Ceph Extra APT repo.
-#   Optional. Defaults to 'false'.
-#
 # [*fastcgi*] Install Ceph fastcgi apache module for Ceph
 #   Optional. Defaults to 'false'
 #
+# [*proxy*] Proxy URL to be used for the yum repository, useful if you're behind a corporate firewall
+#   Optional. Defaults to 'undef'
+#
+# [*proxy_username*] The username to be used for the proxy if one should be required
+#   Optional. Defaults to 'undef'
+#
+# [*proxy_password*] The password to be used for the proxy if one should be required
+#   Optional. Defaults to 'undef'
+#
 class ceph::repo (
-  $ensure  = present,
-  $release = 'hammer',
-  $extras  = false,
-  $fastcgi = false,
+  $ensure         = present,
+  $release        = 'hammer',
+  $fastcgi        = false,
+  $proxy          = undef,
+  $proxy_username = undef,
+  $proxy_password = undef,
 ) {
   case $::osfamily {
     'Debian': {
       include ::apt
 
       apt::key { 'ceph':
-        ensure     => $ensure,
-        key        => '08B73419AC32B4E966C1A330E84AC2C0460F3994',
-        key_source => 'https://download.ceph.com/keys/release.asc',
+        ensure => $ensure,
+        id     => '08B73419AC32B4E966C1A330E84AC2C0460F3994',
+        source => 'https://download.ceph.com/keys/release.asc',
       }
 
       apt::source { 'ceph':
@@ -66,23 +74,12 @@ class ceph::repo (
         tag      => 'ceph',
       }
 
-      if $extras {
-
-        apt::source { 'ceph-extras':
-          ensure   => $ensure,
-          location => 'http://ceph.com/packages/ceph-extras/debian/',
-          release  => $::lsbdistcodename,
-          require  => Apt::Key['ceph'],
-        }
-
-      }
-
       if $fastcgi {
 
         apt::key { 'ceph-gitbuilder':
-          ensure     => $ensure,
-          key        => 'FCC5CB2ED8E6F6FB79D5B3316EAEAE2203C3951A',
-          key_server => 'keyserver.ubuntu.com',
+          ensure => $ensure,
+          id     => 'FCC5CB2ED8E6F6FB79D5B3316EAEAE2203C3951A',
+          server => 'keyserver.ubuntu.com',
         }
 
         apt::source { 'ceph-fastcgi':
@@ -119,7 +116,12 @@ class ceph::repo (
           line   => 'exclude=python-ceph-compat python-rbd python-rados python-cephfs',
         } -> Package<| tag == 'ceph' |>
       }
-
+      
+      Yumrepo {
+        proxy          => $proxy,
+        proxy_username => $proxy_username,
+        proxy_password => $proxy_password,
+      }
       yumrepo { "ext-epel-${el}":
         # puppet versions prior to 3.5 do not support ensure, use enabled instead
         enabled    => $enabled,
@@ -160,22 +162,6 @@ class ceph::repo (
         tag        => 'ceph',
       }
 
-      if $extras and $el == '6' {
-
-        yumrepo { 'ext-ceph-extras':
-          enabled    => $enabled,
-          descr      => 'External Ceph Extras',
-          name       => 'ext-ceph-extras',
-          baseurl    => 'http://ceph.com/packages/ceph-extras/rpm/rhel6/$basearch',
-          gpgcheck   => '1',
-          gpgkey     => 'https://git.ceph.com/release.asc',
-          mirrorlist => absent,
-          priority   => '10', # prefer ceph repos over EPEL
-          tag        => 'ceph',
-        }
-
-      }
-
       if $fastcgi {
 
         yumrepo { 'ext-ceph-fastcgi':
@@ -184,7 +170,7 @@ class ceph::repo (
           name       => 'ext-ceph-fastcgi',
           baseurl    => "http://gitbuilder.ceph.com/mod_fastcgi-rpm-rhel${el}-x86_64-basic/ref/master",
           gpgcheck   => '1',
-          gpgkey     => 'https://git.ceph.com/autobuild.asc',
+          gpgkey     => 'https://download.ceph.com/keys/autobuild.asc',
           mirrorlist => absent,
           priority   => '20', # prefer ceph repos over EPEL
           tag        => 'ceph',

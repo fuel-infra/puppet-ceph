@@ -59,12 +59,31 @@ define ceph::osd (
 
     if $ensure == present {
 
+      $ceph_check_udev = "ceph-osd-check-udev-${name}"
       $ceph_prepare = "ceph-osd-prepare-${name}"
       $ceph_activate = "ceph-osd-activate-${name}"
 
-      Ceph_Config<||> -> Exec[$ceph_prepare]
+      Package<| tag == 'ceph' |> -> Exec[$ceph_check_udev]
+      Ceph_config<||> -> Exec[$ceph_prepare]
       Ceph::Mon<||> -> Exec[$ceph_prepare]
       Ceph::Key<||> -> Exec[$ceph_prepare]
+
+      $udev_rules_file = '/usr/lib/udev/rules.d/95-ceph-osd.rules'
+      exec { $ceph_check_udev:
+        command   => "/bin/true # comment to satisfy puppet syntax requirements
+# Before Infernalis the udev rules race causing the activation to fail so we
+# disable them. More at: http://www.spinics.net/lists/ceph-devel/msg28436.html
+mv -f ${udev_rules_file} ${udev_rules_file}.disabled && udevadm control --reload || true
+",
+        onlyif    => "/bin/true # comment to satisfy puppet syntax requirements
+set -ex
+DISABLE_UDEV=\$(ceph --version | awk 'match(\$3, /[0-9]\\.[0-9]+/) {if (substr(\$3, RSTART, RLENGTH) <= 0.94) {print 1}}')
+test -f ${udev_rules_file} && test \$DISABLE_UDEV -eq 1
+",
+        logoutput => true,
+      }
+
+      Exec[$ceph_check_udev] -> Exec[$ceph_prepare]
       # ceph-disk: prepare should be idempotent http://tracker.ceph.com/issues/7475
       exec { $ceph_prepare:
         command   => "/bin/true # comment to satisfy puppet syntax requirements
@@ -73,11 +92,12 @@ if ! test -b ${data} ; then
   mkdir -p ${data}
 fi
 ceph-disk prepare ${cluster_option} ${data} ${journal}
+udevadm settle
 ",
         unless    => "/bin/true # comment to satisfy puppet syntax requirements
 set -ex
 ceph-disk list | grep -E ' *${data}1? .*ceph data, (prepared|active)' ||
-ls -l /var/lib/ceph/osd/${cluster_name}-* | grep ' ${data}\$'
+{ test -f ${data}/fsid && test -f ${data}/ceph_fsid && test -f ${data}/magic ;}
 ",
         logoutput => true,
         timeout   => $exec_timeout,
@@ -94,10 +114,12 @@ fi
 if ! test -b ${data} || ! test -b ${data}1 ; then
   ceph-disk activate ${data} || true
 fi
+if test -f ${udev_rules_file}.disabled && test -b ${data}1 ; then
+  ceph-disk activate ${data}1 || true
+fi
 ",
         unless    => "/bin/true # comment to satisfy puppet syntax requirements
 set -ex
-ceph-disk list | grep -E ' *${data}1? .*ceph data, active' ||
 ls -ld /var/lib/ceph/osd/${cluster_name}-* | grep ' ${data}\$'
 ",
         logoutput => true,
@@ -118,8 +140,9 @@ fi
 if [ \"\$id\" ] ; then
   stop ceph-osd cluster=${cluster_name} id=\$id || true
   service ceph stop osd.\$id || true
+  ceph ${cluster_option} osd crush remove osd.\$id
+  ceph ${cluster_option} auth del osd.\$id
   ceph ${cluster_option} osd rm \$id
-  ceph auth del osd.\$id
   rm -fr /var/lib/ceph/osd/${cluster_name}-\$id/*
   umount /var/lib/ceph/osd/${cluster_name}-\$id || true
   rm -fr /var/lib/ceph/osd/${cluster_name}-\$id

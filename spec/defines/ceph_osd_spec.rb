@@ -29,6 +29,19 @@ describe 'ceph::osd' do
         '/srv'
       end
 
+      it { is_expected.to contain_exec('ceph-osd-check-udev-/srv').with(
+        'command'   => "/bin/true # comment to satisfy puppet syntax requirements
+# Before Infernalis the udev rules race causing the activation to fail so we
+# disable them. More at: http://www.spinics.net/lists/ceph-devel/msg28436.html
+mv -f /usr/lib/udev/rules.d/95-ceph-osd.rules /usr/lib/udev/rules.d/95-ceph-osd.rules.disabled && udevadm control --reload || true
+",
+       'onlyif'    => "/bin/true # comment to satisfy puppet syntax requirements
+set -ex
+DISABLE_UDEV=\$(ceph --version | awk 'match(\$3, /[0-9]\\.[0-9]+/) {if (substr(\$3, RSTART, RLENGTH) <= 0.94) {print 1}}')
+test -f /usr/lib/udev/rules.d/95-ceph-osd.rules && test \$DISABLE_UDEV -eq 1
+",
+       'logoutput' => true,
+      ) }
       it { is_expected.to contain_exec('ceph-osd-prepare-/srv').with(
         'command'   => "/bin/true # comment to satisfy puppet syntax requirements
 set -ex
@@ -36,11 +49,12 @@ if ! test -b /srv ; then
   mkdir -p /srv
 fi
 ceph-disk prepare  /srv 
+udevadm settle
 ",
         'unless'    => "/bin/true # comment to satisfy puppet syntax requirements
 set -ex
 ceph-disk list | grep -E ' */srv1? .*ceph data, (prepared|active)' ||
-ls -l /var/lib/ceph/osd/ceph-* | grep ' /srv\$'
+{ test -f /srv/fsid && test -f /srv/ceph_fsid && test -f /srv/magic ;}
 ",
         'logoutput' => true
       ) }
@@ -54,10 +68,12 @@ fi
 if ! test -b /srv || ! test -b /srv1 ; then
   ceph-disk activate /srv || true
 fi
+if test -f /usr/lib/udev/rules.d/95-ceph-osd.rules.disabled && test -b /srv1 ; then
+  ceph-disk activate /srv1 || true
+fi
 ",
         'unless'    => "/bin/true # comment to satisfy puppet syntax requirements
 set -ex
-ceph-disk list | grep -E ' */srv1? .*ceph data, active' ||
 ls -ld /var/lib/ceph/osd/ceph-* | grep ' /srv\$'
 ",
         'logoutput' => true
@@ -77,6 +93,19 @@ ls -ld /var/lib/ceph/osd/ceph-* | grep ' /srv\$'
         }
       end
 
+      it { is_expected.to contain_exec('ceph-osd-check-udev-/srv/data').with(
+        'command'   => "/bin/true # comment to satisfy puppet syntax requirements
+# Before Infernalis the udev rules race causing the activation to fail so we
+# disable them. More at: http://www.spinics.net/lists/ceph-devel/msg28436.html
+mv -f /usr/lib/udev/rules.d/95-ceph-osd.rules /usr/lib/udev/rules.d/95-ceph-osd.rules.disabled && udevadm control --reload || true
+",
+       'onlyif'    => "/bin/true # comment to satisfy puppet syntax requirements
+set -ex
+DISABLE_UDEV=\$(ceph --version | awk 'match(\$3, /[0-9]\\.[0-9]+/) {if (substr(\$3, RSTART, RLENGTH) <= 0.94) {print 1}}')
+test -f /usr/lib/udev/rules.d/95-ceph-osd.rules && test \$DISABLE_UDEV -eq 1
+",
+       'logoutput' => true,
+      ) }
       it { is_expected.to contain_exec('ceph-osd-prepare-/srv/data').with(
         'command'   => "/bin/true # comment to satisfy puppet syntax requirements
 set -ex
@@ -84,11 +113,12 @@ if ! test -b /srv/data ; then
   mkdir -p /srv/data
 fi
 ceph-disk prepare --cluster testcluster /srv/data /srv/journal
+udevadm settle
 ",
         'unless'    => "/bin/true # comment to satisfy puppet syntax requirements
 set -ex
 ceph-disk list | grep -E ' */srv/data1? .*ceph data, (prepared|active)' ||
-ls -l /var/lib/ceph/osd/testcluster-* | grep ' /srv/data\$'
+{ test -f /srv/data/fsid && test -f /srv/data/ceph_fsid && test -f /srv/data/magic ;}
 ",
         'logoutput' => true
       ) }
@@ -102,10 +132,12 @@ fi
 if ! test -b /srv/data || ! test -b /srv/data1 ; then
   ceph-disk activate /srv/data || true
 fi
+if test -f /usr/lib/udev/rules.d/95-ceph-osd.rules.disabled && test -b /srv/data1 ; then
+  ceph-disk activate /srv/data1 || true
+fi
 ",
         'unless'    => "/bin/true # comment to satisfy puppet syntax requirements
 set -ex
-ceph-disk list | grep -E ' */srv/data1? .*ceph data, active' ||
 ls -ld /var/lib/ceph/osd/testcluster-* | grep ' /srv/data\$'
 ",
         'logoutput' => true
@@ -136,8 +168,9 @@ fi
 if [ \"\$id\" ] ; then
   stop ceph-osd cluster=ceph id=\$id || true
   service ceph stop osd.\$id || true
+  ceph  osd crush remove osd.\$id
+  ceph  auth del osd.\$id
   ceph  osd rm \$id
-  ceph auth del osd.\$id
   rm -fr /var/lib/ceph/osd/ceph-\$id/*
   umount /var/lib/ceph/osd/ceph-\$id || true
   rm -fr /var/lib/ceph/osd/ceph-\$id

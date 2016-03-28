@@ -27,10 +27,11 @@ describe 'ceph::rgw::keystone' do
         :concat_basedir         => '/var/lib/puppet/concat',
         :fqdn                   => 'myhost.domain',
         :hostname               => 'myhost',
-        :lsbdistcodename        => 'precise',
+        :lsbdistid              => 'Ubuntu',
+        :lsbdistcodename        => 'trusty',
         :osfamily               => 'Debian',
         :operatingsystem        => 'Ubuntu',
-        :operatingsystemrelease => '12.04',
+        :operatingsystemrelease => '14.04',
       }
     end
 
@@ -40,10 +41,10 @@ describe 'ceph::rgw::keystone' do
         "
           include ceph::params
           class { 'ceph': fsid => 'd5252e7d-75bc-4083-85ed-fe51fa83f62b' }
-          class { 'ceph::repo': extras => true, fastcgi => true, }
+          class { 'ceph::repo': fastcgi => true, }
           include ceph
           ceph::rgw { 'radosgw.gateway': }
-          ceph::rgw::apache { 'radosgw.gateway': }
+          ceph::rgw::apache_fastcgi { 'radosgw.gateway': }
         "
       end
 
@@ -90,9 +91,9 @@ openssl x509 -in /tmp/signing -pubkey | certutil -A -d /var/lib/ceph/nss -n sign
         "
           include ceph::params
           class { 'ceph': fsid => 'd5252e7d-75bc-4083-85ed-fe51fa83f62b' }
-          class { 'ceph::repo': extras => true, fastcgi => true, }
+          class { 'ceph::repo': fastcgi => true, }
           ceph::rgw { 'radosgw.custom': }
-          ceph::rgw::apache { 'radosgw.custom': }
+          ceph::rgw::apache_fastcgi { 'radosgw.custom': }
         "
       end
 
@@ -144,11 +145,11 @@ openssl x509 -in /tmp/signing -pubkey | certutil -A -d /some/path/to/nss -n sign
         :concat_basedir            => '/var/lib/puppet/concat',
         :fqdn                      => 'myhost.domain',
         :hostname                  => 'myhost',
-        :lsbdistcodename           => 'Final',
+        :lsbdistcodename           => 'Maipo',
         :osfamily                  => 'RedHat',
         :operatingsystem           => 'RedHat',
-        :operatingsystemrelease    => '6',
-        :operatingsystemmajrelease => '6',
+        :operatingsystemrelease    => '7.2',
+        :operatingsystemmajrelease => '7',
       }
     end
 
@@ -158,10 +159,10 @@ openssl x509 -in /tmp/signing -pubkey | certutil -A -d /some/path/to/nss -n sign
         "
           include ceph::params
           class { 'ceph': fsid => 'd5252e7d-75bc-4083-85ed-fe51fa83f62b' }
-          class { 'ceph::repo': extras => true, fastcgi => true, }
+          class { 'ceph::repo': fastcgi => true, }
           include ceph
           ceph::rgw { 'radosgw.gateway': }
-          ceph::rgw::apache { 'radosgw.gateway': }
+          ceph::rgw::apache_fastcgi { 'radosgw.gateway': }
         "
       end
 
@@ -208,9 +209,9 @@ openssl x509 -in /tmp/signing -pubkey | certutil -A -d /var/lib/ceph/nss -n sign
         "
           include ceph::params
           class { 'ceph': fsid => 'd5252e7d-75bc-4083-85ed-fe51fa83f62b' }
-          class { 'ceph::repo': extras => true, fastcgi => true, }
+          class { 'ceph::repo': fastcgi => true, }
           ceph::rgw { 'radosgw.custom': }
-          ceph::rgw::apache { 'radosgw.custom': }
+          ceph::rgw::apache_fastcgi { 'radosgw.custom': }
         "
       end
 

@@ -76,6 +76,11 @@
 # [*public_network*] The address of the public network.
 #   Optional. {public-network-ip/netmask}
 #
+# [*public_addr*] The MON bind IP address.
+#   Optional. The IPv(4|6) address on which MON binds itself.
+#   This is useful when not specifying public_network or when there is more than one IP address on
+#   the same network and you want to be specific about the IP to bind the MON on.
+#
 # [*mon_key*] The mon secret key.
 #   Optional. Either mon_key or mon_keyring need to be set when using cephx.
 #
@@ -94,9 +99,25 @@
 #   the repo by yourself.
 #   Optional. Defaults to true
 #
+# [*rgw_name*] the name for the radosgw cluster. Must be in the format
+#  "radosgw.${name}" where name is whatever you want
+#   Optional.
+#
+# [*rgw_user*] the user ID radosgw should run as.
+#   Optional.
+#
+# [*rgw_print_continue*] should http 100 continue be used
+#  Optional.
+#
+# [*frontend_type*] What type of frontend to use
+#   Optional. Options are apache-fastcgi, apache-proxy-fcgi or civetweb
+#
+# [*rgw_frontends*] Arguments to the rgw frontend
+#   Optional. Example: "civetweb port=7480"
+#
+
 class ceph::profile::params (
-  # puppet 2.7 compatibiliy hack. TODO: change to undef once 2.7 is deprecated
-  $fsid = '4b5c8c0a-ff60-454b-a1b4-9747aa737d19',
+  $fsid = undef,
   $release = undef,
   $authentication_type = undef,
   $mon_initial_members = undef,
@@ -109,11 +130,17 @@ class ceph::profile::params (
   $osd_pool_default_min_size = undef,
   $cluster_network = undef,
   $public_network = undef,
+  $public_addr = undef,
   $mon_key = undef,
   $mon_keyring = undef,
   $client_keys = {},
   $osds = undef,
   $manage_repo = true,
+  $rgw_name = undef,
+  $rgw_user = undef,
+  $rgw_print_continue = undef,
+  $frontend_type = undef,
+  $rgw_frontends = undef,
 ) {
   validate_hash($client_keys)
 

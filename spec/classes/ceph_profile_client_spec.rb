@@ -94,7 +94,8 @@ describe 'ceph::profile::client' do
     let :facts do
       {
         :osfamily         => 'Debian',
-        :lsbdistcodename  => 'wheezy',
+        :lsbdistid        => 'Debian',
+        :lsbdistcodename  => 'jessie',
         :operatingsystem  => 'Debian',
       }
     end
@@ -107,21 +108,11 @@ describe 'ceph::profile::client' do
     let :facts do
       {
         :osfamily         => 'Debian',
-        :lsbdistcodename  => 'precise',
+        :lsbdistid        => 'Ubuntu',
+        :lsbdistcodename  => 'trusty',
         :operatingsystem  => 'Ubuntu',
       }
     end
-
-    it_configures 'ceph profile client'
-  end
-
-  context 'on RHEL6' do
-
-    let :facts do
-      { :osfamily                  => 'RedHat',
-        :operatingsystemmajrelease => '6' }
-    end
-
 
     it_configures 'ceph profile client'
   end

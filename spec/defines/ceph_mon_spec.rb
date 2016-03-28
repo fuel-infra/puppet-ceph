@@ -57,6 +57,22 @@ describe 'ceph::mon' do
       end
 
       it { is_expected.to contain_service('ceph-mon-A').with('ensure' => 'running') }
+      it { is_expected.to contain_exec('create-keyring-A').with(
+        'command' => '/bin/true # comment to satisfy puppet syntax requirements
+set -ex
+cat > /tmp/ceph-mon-keyring-A << EOF
+[mon.]
+    key = AQATGHJTUCBqIBAA7M2yafV1xctn1pgr3GcKPg==
+    caps mon = "allow *"
+EOF
+
+chmod 0444 /tmp/ceph-mon-keyring-A
+',
+        'unless' => '/bin/true # comment to satisfy puppet syntax requirements
+set -ex
+mon_data=$(ceph-mon  --id A --show-config-value mon_data) || exit 1 # if ceph-mon fails then the mon is probably not configured yet
+test -e $mon_data/done
+') }
       it { is_expected.to contain_exec('ceph-mon-ceph.client.admin.keyring-A').with(
         'command' => '/bin/true # comment to satisfy puppet syntax requirements
 set -ex
@@ -69,7 +85,6 @@ mon_data=\$(ceph-mon  --id A --show-config-value mon_data)
 if [ ! -d \$mon_data ] ; then
   mkdir -p \$mon_data
   if ceph-mon  \
-         \
         --mkfs \
         --id A \
         --keyring /tmp/ceph-mon-keyring-A ; then
@@ -80,9 +95,6 @@ if [ ! -d \$mon_data ] ; then
 fi
 ",
         'logoutput' => true) }
-      it { is_expected.to contain_file('/tmp/ceph-mon-keyring-A').with(
-        'mode' => '0444',
-        'content' => "[mon.]\n\tkey = AQATGHJTUCBqIBAA7M2yafV1xctn1pgr3GcKPg==\n\tcaps mon = \"allow *\"\n") }
       it { is_expected.to contain_exec('rm-keyring-A').with('command' => '/bin/rm /tmp/ceph-mon-keyring-A') }
     end
 
@@ -111,7 +123,6 @@ mon_data=\$(ceph-mon  --id A --show-config-value mon_data)
 if [ ! -d \$mon_data ] ; then
   mkdir -p \$mon_data
   if ceph-mon  \
-         \
         --mkfs \
         --id A \
         --keyring /etc/ceph/ceph.mon.keyring ; then
@@ -139,6 +150,7 @@ fi
       end
 
       it { is_expected.to contain_service('ceph-mon-A').with('ensure' => 'running') }
+      it { is_expected.to contain_ceph_config('mon.A/public_addr').with_value("127.0.0.1") }
       it { is_expected.to contain_exec('ceph-mon-testcluster.client.admin.keyring-A').with(
         'command' => '/bin/true # comment to satisfy puppet syntax requirements
 set -ex
@@ -151,7 +163,6 @@ mon_data=\$(ceph-mon --cluster testcluster --id A --show-config-value mon_data)
 if [ ! -d \$mon_data ] ; then
   mkdir -p \$mon_data
   if ceph-mon --cluster testcluster \
-        --public_addr 127.0.0.1 \
         --mkfs \
         --id A \
         --keyring /dev/null ; then
@@ -231,6 +242,22 @@ test ! -d \$mon_data
       end
 
       it { is_expected.to contain_service('ceph-mon-A').with('ensure' => 'running') }
+      it { is_expected.to contain_exec('create-keyring-A').with(
+        'command' => '/bin/true # comment to satisfy puppet syntax requirements
+set -ex
+cat > /tmp/ceph-mon-keyring-A << EOF
+[mon.]
+    key = AQATGHJTUCBqIBAA7M2yafV1xctn1pgr3GcKPg==
+    caps mon = "allow *"
+EOF
+
+chmod 0444 /tmp/ceph-mon-keyring-A
+',
+        'unless' => '/bin/true # comment to satisfy puppet syntax requirements
+set -ex
+mon_data=$(ceph-mon  --id A --show-config-value mon_data) || exit 1 # if ceph-mon fails then the mon is probably not configured yet
+test -e $mon_data/done
+') }
       it { is_expected.to contain_exec('ceph-mon-ceph.client.admin.keyring-A').with(
         'command' => '/bin/true # comment to satisfy puppet syntax requirements
 set -ex
@@ -246,7 +273,6 @@ mon_data=\$(ceph-mon  --id A --show-config-value mon_data)
 if [ ! -d \$mon_data ] ; then
   mkdir -p \$mon_data
   if ceph-mon  \
-         \
         --mkfs \
         --id A \
         --keyring /tmp/ceph-mon-keyring-A ; then
@@ -257,9 +283,6 @@ if [ ! -d \$mon_data ] ; then
 fi
 ",
         'logoutput' => true) }
-      it { is_expected.to contain_file('/tmp/ceph-mon-keyring-A').with(
-        'mode' => '0444',
-        'content' => "[mon.]\n\tkey = AQATGHJTUCBqIBAA7M2yafV1xctn1pgr3GcKPg==\n\tcaps mon = \"allow *\"\n") }
       it { is_expected.to contain_exec('rm-keyring-A').with(
           'command' => '/bin/rm /tmp/ceph-mon-keyring-A',
           'unless'  => '/bin/true # comment to satisfy puppet syntax requirements
@@ -293,7 +316,6 @@ mon_data=\$(ceph-mon  --id A --show-config-value mon_data)
 if [ ! -d \$mon_data ] ; then
   mkdir -p \$mon_data
   if ceph-mon  \
-         \
         --mkfs \
         --id A \
         --keyring /etc/ceph/ceph.mon.keyring ; then
@@ -321,6 +343,7 @@ fi
       end
 
       it { is_expected.to contain_service('ceph-mon-A').with('ensure' => 'running') }
+      it { is_expected.to contain_ceph_config('mon.A/public_addr').with_value("127.0.0.1") }
       it { is_expected.to contain_exec('ceph-mon-testcluster.client.admin.keyring-A').with(
         'command' => '/bin/true # comment to satisfy puppet syntax requirements
 set -ex
@@ -333,7 +356,6 @@ mon_data=\$(ceph-mon --cluster testcluster --id A --show-config-value mon_data)
 if [ ! -d \$mon_data ] ; then
   mkdir -p \$mon_data
   if ceph-mon --cluster testcluster \
-        --public_addr 127.0.0.1 \
         --mkfs \
         --id A \
         --keyring /dev/null ; then

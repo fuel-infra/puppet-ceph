@@ -113,12 +113,26 @@ define ceph::mon (
         if $key {
           $keyring_path = "/tmp/ceph-mon-keyring-${id}"
 
-          file { $keyring_path:
-            mode    => '0444',
-            content => "[mon.]\n\tkey = ${key}\n\tcaps mon = \"allow *\"\n",
+          Ceph_config<||> ->
+          exec { "create-keyring-${id}":
+            command => "/bin/true # comment to satisfy puppet syntax requirements
+set -ex
+cat > ${keyring_path} << EOF
+[mon.]
+    key = ${key}
+    caps mon = \"allow *\"
+EOF
+
+chmod 0444 ${keyring_path}
+",
+            unless  => "/bin/true # comment to satisfy puppet syntax requirements
+set -ex
+mon_data=\$(ceph-mon ${cluster_option} --id ${id} --show-config-value mon_data) || exit 1 # if ceph-mon fails then the mon is probably not configured yet
+test -e \$mon_data/done
+",
           }
 
-          File[$keyring_path] -> Exec[$ceph_mkfs]
+          Exec["create-keyring-${id}"] -> Exec[$ceph_mkfs]
 
         } else {
           $keyring_path = $keyring
@@ -129,10 +143,12 @@ define ceph::mon (
       }
 
       if $public_addr {
-        $public_addr_option = "--public_addr ${public_addr}"
+        ceph_config {
+          "mon.${id}/public_addr": value => $public_addr;
+        }
       }
 
-      Ceph_Config<||> ->
+      Ceph_config<||> ->
       # prevent automatic creation of the client.admin key by ceph-create-keys
       exec { "ceph-mon-${cluster_name}.client.admin.keyring-${id}":
         command => "/bin/true # comment to satisfy puppet syntax requirements
@@ -150,7 +166,6 @@ mon_data=\$(ceph-mon ${cluster_option} --id ${id} --show-config-value mon_data)
 if [ ! -d \$mon_data ] ; then
   mkdir -p \$mon_data
   if ceph-mon ${cluster_option} \
-        ${public_addr_option} \
         --mkfs \
         --id ${id} \
         --keyring ${keyring_path} ; then
@@ -206,6 +221,9 @@ test ! -d \$mon_data
 ",
         logoutput => true,
         timeout   => $exec_timeout,
+      } ->
+      ceph_config {
+        "mon.${id}/public_addr": ensure => absent;
       } -> Package<| tag == 'ceph' |>
     }
   }
